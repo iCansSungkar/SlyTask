@@ -74,6 +74,7 @@ Untuk melewati pembatasan Google, aplikasi mendeteksi saat MLBB berjalan di *for
 > **PENGGUNAAN RESIKO SENDIRI (USE AT YOUR OWN RISK)**
 > 
 > * **Bukan Aplikasi Resmi:** SlyTask adalah aplikasi pihak ketiga dan **SAMA SEKALI BUKAN** aplikasi resmi dari, berafiliasi dengan, atau didukung oleh **Shanghai Moonton Technology Co., Ltd.**
+> * **Tidak Merugikan Pihak Manapun:** Aplikasi ini dibuat murni sebagai alat bantu utilitas manajemen data lokal perangkat untuk efisiensi pengguna. Aplikasi ini **tidak mengandung cheat, script modifikasi game, hack skin, bypass pembelian in-app, atau tindakan ilegal lainnya** yang merugikan pihak Moonton maupun ekosistem pemain lainnya.
 > * **Persyaratan Sistem:** Projek ini membutuhkan **Akses Root Superuser**[cite: 1]. Pengembang tidak bertanggung jawab atas kegagalan sistem, hilangnya data akun, atau masalah performa pada perangkat Anda.
 > * **Keamanan Akun:** Pastikan Anda telah mengaitkan (*bind*) akun utama Anda ke Moonton/Facebook/TikTok sebelum menggunakan fitur ganti akun guna menghindari hilangnya akses[cite: 1].
 
