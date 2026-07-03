@@ -18,11 +18,11 @@
 ---
 
 <p align="center">
-  <a href="#-key-features">Fitur Utama</a> •
-  <a href="#-tech-stack">Teknologi</a> •
-  <a href="#%EF%B8%8F-how-it-works">Cara Kerja</a> •
-  <a href="#-disclaimer">Disclaimer</a> •
-  <a href="#-credits">Kredit</a>
+  <a href="#%EF%B8%8F-tech-stack">Fitur Utama</a> •
+  <a href="#%EF%B8%8F-tech-stack">Teknologi</a> •
+  <a href="#%EF%B8%8F-how-it-works-cara-kerja">Cara Kerja</a> •
+  <a href="#%EF%B8%8F-disclaimer">Disclaimer</a> •
+  <a href="#-credits--acknowledgements">Kredit</a>
 </p>
 
 </div>
