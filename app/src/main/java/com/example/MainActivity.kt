@@ -22,7 +22,9 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -87,6 +89,15 @@ fun MainBentoDashboard(
     val activeTimer by manager.createAccountTimer.collectAsState()
     val isMlForeground by manager.isMlForeground.collectAsState()
     val mlForegroundDuration by manager.mlForegroundDuration.collectAsState()
+    val selectedPackage by manager.selectedPackage.collectAsState()
+    var showPackageDropdown by remember { mutableStateOf(false) }
+    val packageOptions = listOf(
+        "com.mobile.legends",
+        "com.mobile.legends.usa",
+        "com.mobile.legends.vng",
+        "com.moonton.mobilelegends.cn",
+        "com.moonton.mobilelegends.beta"
+    )
 
     // Dialog state management
     var showBackupDialog by remember { mutableStateOf(false) }
@@ -212,6 +223,135 @@ fun MainBentoDashboard(
                                 uncheckedTrackColor = MaterialTheme.colorScheme.surfaceVariant
                             )
                         )
+                    }
+                }
+            }
+
+            // ==========================================
+            // PACKAGE SELECTOR BENTO BOX (Dropdown)
+            // ==========================================
+            BentoSectionCard(
+                glowColor = if (isDarkMode) SoftCyan else SoftCyanLight,
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Column(modifier = Modifier.padding(16.dp)) {
+                    Text(
+                        text = if (currentLang == "ID") "Paket Game Mobile Legends" else "Mobile Legends Game Package",
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.5f)
+                    )
+                    
+                    Spacer(modifier = Modifier.height(8.dp))
+                    
+                    Box(modifier = Modifier.fillMaxWidth()) {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clip(RoundedCornerShape(12.dp))
+                                .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f))
+                                .border(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.2f), RoundedCornerShape(12.dp))
+                                .clickable { showPackageDropdown = !showPackageDropdown }
+                                .padding(12.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.SpaceBetween
+                        ) {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(12.dp)
+                            ) {
+                                PackageIcon(packageName = selectedPackage)
+                                
+                                Column {
+                                    val label = when (selectedPackage) {
+                                        "com.mobile.legends" -> "Mobile Legends (Global)"
+                                        "com.mobile.legends.usa" -> "Mobile Legends (USA / NA)"
+                                        "com.mobile.legends.vng" -> "Mobile Legends (VNG / Vietnam)"
+                                        "com.moonton.mobilelegends.cn" -> "Mobile Legends (China)"
+                                        "com.moonton.mobilelegends.beta" -> "Mobile Legends (Beta / Advance)"
+                                        else -> selectedPackage
+                                    }
+                                    Text(
+                                        text = label,
+                                        fontSize = 14.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        color = MaterialTheme.colorScheme.onBackground
+                                    )
+                                    Text(
+                                        text = selectedPackage,
+                                        fontSize = 10.sp,
+                                        fontFamily = FontFamily.Monospace,
+                                        color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.5f)
+                                    )
+                                }
+                            }
+                            
+                            Icon(
+                                imageVector = if (showPackageDropdown) Icons.Default.KeyboardArrowUp else Icons.Default.KeyboardArrowDown,
+                                contentDescription = "Dropdown Arrow",
+                                tint = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.6f)
+                            )
+                        }
+                        
+                        DropdownMenu(
+                            expanded = showPackageDropdown,
+                            onDismissRequest = { showPackageDropdown = false },
+                            modifier = Modifier
+                                .fillMaxWidth(0.9f)
+                                .background(MaterialTheme.colorScheme.surface)
+                                .border(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.3f), RoundedCornerShape(12.dp))
+                        ) {
+                            packageOptions.forEach { pkg ->
+                                val isSelected = pkg == selectedPackage
+                                DropdownMenuItem(
+                                    text = {
+                                        Row(
+                                            verticalAlignment = Alignment.CenterVertically,
+                                            horizontalArrangement = Arrangement.spacedBy(12.dp),
+                                            modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp)
+                                        ) {
+                                            PackageIcon(packageName = pkg)
+                                            
+                                            Column(modifier = Modifier.weight(1f)) {
+                                                val label = when (pkg) {
+                                                    "com.mobile.legends" -> "Mobile Legends (Global)"
+                                                    "com.mobile.legends.usa" -> "Mobile Legends (USA)"
+                                                    "com.mobile.legends.vng" -> "Mobile Legends (VNG)"
+                                                    "com.moonton.mobilelegends.cn" -> "Mobile Legends (CN)"
+                                                    "com.moonton.mobilelegends.beta" -> "Mobile Legends (Beta)"
+                                                    else -> pkg
+                                                }
+                                                Text(
+                                                    text = label,
+                                                    fontSize = 13.sp,
+                                                    fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
+                                                    color = if (isSelected) (if (isDarkMode) NeonMint else NeonTealLight) else MaterialTheme.colorScheme.onBackground
+                                                )
+                                                Text(
+                                                    text = pkg,
+                                                    fontSize = 9.sp,
+                                                    fontFamily = FontFamily.Monospace,
+                                                    color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.5f)
+                                                )
+                                            }
+                                            
+                                            if (isSelected) {
+                                                Icon(
+                                                    imageVector = Icons.Default.Check,
+                                                    contentDescription = "Selected",
+                                                    tint = if (isDarkMode) NeonMint else NeonTealLight,
+                                                    modifier = Modifier.size(16.dp)
+                                                )
+                                            }
+                                        }
+                                    },
+                                    onClick = {
+                                        manager.setSelectedPackage(pkg)
+                                        showPackageDropdown = false
+                                    }
+                                )
+                            }
+                        }
                     }
                 }
             }
@@ -1128,6 +1268,62 @@ fun MainBentoDashboard(
                     }
                 }
             )
+        }
+    }
+}
+
+@Composable
+fun PackageIcon(packageName: String, modifier: Modifier = Modifier) {
+    val context = LocalContext.current
+    val resName = packageName.replace('.', '_')
+    val resId = remember(packageName) {
+        context.resources.getIdentifier(resName, "drawable", context.packageName)
+    }
+    
+    Box(
+        modifier = modifier
+            .size(40.dp)
+            .clip(RoundedCornerShape(8.dp))
+            .background(MaterialTheme.colorScheme.surfaceVariant),
+        contentAlignment = Alignment.Center
+    ) {
+        if (resId != 0) {
+            Image(
+                painter = painterResource(id = resId),
+                contentDescription = packageName,
+                modifier = Modifier.fillMaxSize(),
+                contentScale = ContentScale.Crop
+            )
+        } else {
+            // Safe fallback with a premium themed letter gradient representation
+            val letter = when (packageName) {
+                "com.mobile.legends" -> "GL"
+                "com.mobile.legends.usa" -> "US"
+                "com.mobile.legends.vng" -> "VN"
+                "com.moonton.mobilelegends.cn" -> "CN"
+                "com.moonton.mobilelegends.beta" -> "BT"
+                else -> "ML"
+            }
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(
+                        Brush.linearGradient(
+                            colors = listOf(
+                                Color(0xFF00FFCC),
+                                Color(0xFF0099FF)
+                            )
+                        )
+                    ),
+                contentAlignment = Alignment.Center
+            ) {
+                Text(
+                    text = letter,
+                    fontSize = 14.sp,
+                    fontWeight = FontWeight.Black,
+                    color = Color.White
+                )
+            }
         }
     }
 }
