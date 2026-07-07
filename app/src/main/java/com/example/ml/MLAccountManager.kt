@@ -63,6 +63,14 @@ class MLAccountManager(private val context: Context) {
     private val _mlForegroundDuration = MutableStateFlow(0L)
     val mlForegroundDuration: StateFlow<Long> = _mlForegroundDuration.asStateFlow()
 
+    private val _selectedPackage = MutableStateFlow("com.mobile.legends")
+    val selectedPackage: StateFlow<String> = _selectedPackage.asStateFlow()
+
+    fun setSelectedPackage(pkg: String) {
+        _selectedPackage.value = pkg
+        addLog(LogType.INFO, "Paket game terpilih diubah ke: $pkg")
+    }
+
     private var timerRunnable: Runnable? = null
     private val mainHandler = Handler(Looper.getMainLooper())
 
@@ -243,82 +251,92 @@ class MLAccountManager(private val context: Context) {
             return
         }
 
+        val pkg = _selectedPackage.value
         _isOperationRunning.value = true
         CoroutineScope(Dispatchers.IO).launch {
-            val dateStr = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault()).format(Date())
-            
-            if (_isRootMode.value) {
-                addLog(LogType.INFO, "Memulai Backup Akun Mobile Legends: $accountName")
+            try {
+                val dateStr = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault()).format(Date())
                 
-                // 1. Ensure target backup dir exists
-                val createDirCmd = "mkdir -p /data/tmp/account/$sanitized"
-                addLog(LogType.ROOT, "su -c \"$createDirCmd\"")
-                var r = RootCommandExecutor.executeRootCommand(createDirCmd)
-                if (!r.isSuccess) {
-                    addLog(LogType.ERROR, "Gagal membuat direktori backup: ${r.error}")
-                    _isOperationRunning.value = false
-                    withContext(Dispatchers.Main) {
-                        onComplete(false, "Gagal membuat folder backup di /data/tmp")
+                if (_isRootMode.value) {
+                    addLog(LogType.INFO, "Memulai Backup Akun Mobile Legends ($pkg): $accountName")
+                    
+                    // 1. Ensure target backup dir exists
+                    val createDirCmd = "mkdir -p /data/tmp/account/$sanitized"
+                    addLog(LogType.ROOT, "su -c \"$createDirCmd\"")
+                    var r = RootCommandExecutor.executeRootCommand(createDirCmd)
+                    if (!r.isSuccess) {
+                        addLog(LogType.ERROR, "Gagal membuat direktori backup: ${r.error}")
+                        _isOperationRunning.value = false
+                        withContext(Dispatchers.Main) {
+                            onComplete(false, "Gagal membuat folder backup di /data/tmp")
+                        }
+                        return@launch
                     }
-                    return@launch
-                }
 
-                // 2. Double check if ML folder exists, if not warn
-                val mlCheck = RootCommandExecutor.executeRootCommand("[ -d /data/data/com.mobile.legends ] && echo 'yes'")
-                if (mlCheck.output != "yes") {
-                    addLog(LogType.ERROR, "Folder /data/data/com.mobile.legends tidak ditemukan. Apakah Mobile Legends terpasang?")
-                }
-
-                // 3. Clear backup content if exists and copy files recursively
-                val copyCmd = "rm -rf /data/tmp/account/$sanitized/* && cp -R /data/data/com.mobile.legends/. /data/tmp/account/$sanitized/"
-                addLog(LogType.ROOT, "su -c \"$copyCmd\"")
-                r = RootCommandExecutor.executeRootCommand(copyCmd)
-                if (!r.isSuccess) {
-                    addLog(LogType.ERROR, "Gagal menyalin data: ${r.error}")
-                    _isOperationRunning.value = false
-                    withContext(Dispatchers.Main) {
-                        onComplete(false, "Gagal menyalin file data Mobile Legends. Pastikan izin root diberikan.")
+                    // 2. Double check if ML folder exists, if not warn
+                    val mlCheck = RootCommandExecutor.executeRootCommand("[ -d /data/data/$pkg ] && echo 'yes'")
+                    if (mlCheck.output != "yes") {
+                        addLog(LogType.ERROR, "Folder /data/data/$pkg tidak ditemukan. Apakah paket game terpasang?")
                     }
-                    return@launch
+
+                    // 3. Clear backup content if exists and copy files recursively
+                    val copyCmd = "rm -rf /data/tmp/account/$sanitized/* && cp -R /data/data/$pkg/. /data/tmp/account/$sanitized/"
+                    addLog(LogType.ROOT, "su -c \"$copyCmd\"")
+                    r = RootCommandExecutor.executeRootCommand(copyCmd)
+                    if (!r.isSuccess) {
+                        addLog(LogType.ERROR, "Gagal menyalin data: ${r.error}")
+                        _isOperationRunning.value = false
+                        withContext(Dispatchers.Main) {
+                            onComplete(false, "Gagal menyalin file data game. Pastikan izin root diberikan.")
+                        }
+                        return@launch
+                    }
+
+                    // 4. Create base64 meta json to bypass shell escapes
+                    val metaJson = "{\"name\":\"$accountName\",\"date\":\"$dateStr\"}"
+                    val b64Str = Base64.encodeToString(metaJson.toByteArray(Charsets.UTF_8), Base64.NO_WRAP)
+                    val writeMetaCmd = "echo -n '$b64Str' | base64 -d > /data/tmp/account/$sanitized/meta.json"
+                    addLog(LogType.ROOT, "su -c \"$writeMetaCmd\"")
+                    RootCommandExecutor.executeRootCommand(writeMetaCmd)
+
+                    addLog(LogType.SUCCESS, "Backup Akun [$accountName] Berhasil disimpan secara offline!")
+                    _isOperationRunning.value = false
+                    refreshBackups()
+                    withContext(Dispatchers.Main) {
+                        onComplete(true, "Akun $accountName berhasil dibackup di /data/tmp/account/$sanitized!")
+                    }
+
+                } else {
+                    // Simulation Mode
+                    addLog(LogType.INFO, "[SIMULASI] Memulai backup $accountName untuk paket $pkg...")
+                    java.lang.Thread.sleep(1500)
+                    
+                    val simDir = File(context.filesDir, "simulated_accounts")
+                    val backupFolder = File(simDir, sanitized)
+                    backupFolder.mkdirs()
+                    
+                    val metaFile = File(backupFolder, "meta.json")
+                    val metaJson = "{\"name\":\"$accountName\",\"date\":\"$dateStr\"}"
+                    metaFile.writeText(metaJson)
+                    
+                    // Write fake subfiles to simulate data volume
+                    File(backupFolder, "shared_prefs").mkdir()
+                    File(backupFolder, "files").mkdir()
+                    File(File(backupFolder, "files"), "Preferences").writeText("Mock User ML Game ID config")
+
+                    addLog(LogType.SUCCESS, "[SIMULASI] Akun $accountName berhasil disalin ke internal simulator sandbox.")
+                    _isOperationRunning.value = false
+                    refreshBackups()
+                    withContext(Dispatchers.Main) {
+                        onComplete(true, "[Simulasi] Akun $accountName di-backup berhasil.")
+                    }
                 }
-
-                // 4. Create base64 meta json to bypass shell escapes
-                val metaJson = "{\"name\":\"$accountName\",\"date\":\"$dateStr\"}"
-                val b64Str = Base64.encodeToString(metaJson.toByteArray(Charsets.UTF_8), Base64.NO_WRAP)
-                val writeMetaCmd = "echo -n '$b64Str' | base64 -d > /data/tmp/account/$sanitized/meta.json"
-                addLog(LogType.ROOT, "su -c \"$writeMetaCmd\"")
-                RootCommandExecutor.executeRootCommand(writeMetaCmd)
-
-                addLog(LogType.SUCCESS, "Backup Akun [$accountName] Berhasil disimpan secara offline!")
+            } catch (e: Exception) {
+                Log.e(TAG, "Error in backupAccount", e)
+                addLog(LogType.ERROR, "Kritis: Gagal melakukan backup: ${e.localizedMessage}")
                 _isOperationRunning.value = false
-                refreshBackups()
                 withContext(Dispatchers.Main) {
-                    onComplete(true, "Akun $accountName berhasil dibackup di /data/tmp/account/$sanitized!")
-                }
-
-            } else {
-                // Simulation Mode
-                addLog(LogType.INFO, "[SIMULASI] Memulai backup $accountName...")
-                java.lang.Thread.sleep(1500)
-                
-                val simDir = File(context.filesDir, "simulated_accounts")
-                val backupFolder = File(simDir, sanitized)
-                backupFolder.mkdirs()
-                
-                val metaFile = File(backupFolder, "meta.json")
-                val metaJson = "{\"name\":\"$accountName\",\"date\":\"$dateStr\"}"
-                metaFile.writeText(metaJson)
-                
-                // Write fake subfiles to simulate data volume
-                File(backupFolder, "shared_prefs").mkdir()
-                File(backupFolder, "files").mkdir()
-                File(File(backupFolder, "files"), "Preferences").writeText("Mock User ML Game ID config")
-
-                addLog(LogType.SUCCESS, "[SIMULASI] Akun $accountName berhasil disalin ke internal simulator sandbox.")
-                _isOperationRunning.value = false
-                refreshBackups()
-                withContext(Dispatchers.Main) {
-                    onComplete(true, "[Simulasi] Akun $accountName di-backup berhasil.")
+                    onComplete(false, "Terjadi kesalahan sistem saat backup: ${e.localizedMessage}")
                 }
             }
         }
@@ -328,104 +346,115 @@ class MLAccountManager(private val context: Context) {
      * Switch Mobile Legends Account (Restore)
      */
     fun switchAccount(backup: BackupAccount, onComplete: (Boolean, String) -> Unit) {
+        val pkg = _selectedPackage.value
         _isOperationRunning.value = true
         CoroutineScope(Dispatchers.IO).launch {
-            if (_isRootMode.value) {
-                addLog(LogType.INFO, "Memulai peralihan (switch) ke akun: ${backup.name}")
+            try {
+                if (_isRootMode.value) {
+                    addLog(LogType.INFO, "Memulai peralihan (switch) ke akun: ${backup.name}")
 
-                // 1. Backup SD card resources first to avoid redownloads
-                addLog(LogType.INFO, "Mengamankan Asset Sumber Daya Game MLBB (Saves mobile.legends -> mobile.legends.backup)")
-                val renameSdkCmd = "mv /sdcard/Android/data/com.mobile.legends /sdcard/Android/data/com.mobile.legends.backup"
-                addLog(LogType.ROOT, "su -c \"$renameSdkCmd\"")
-                var r = RootCommandExecutor.executeRootCommand(renameSdkCmd)
-                if (!r.isSuccess) {
-                    addLog(LogType.INFO, "Gagal memindah atau folder resources SDCard tidak ditemukan di /sdcard/. Mencoba path emulated...")
-                    val renameSdkEmulatedCmd = "mv /storage/emulated/0/Android/data/com.mobile.legends /storage/emulated/0/Android/data/com.mobile.legends.backup"
-                    addLog(LogType.ROOT, "su -c \"$renameSdkEmulatedCmd\"")
-                    RootCommandExecutor.executeRootCommand(renameSdkEmulatedCmd)
-                }
+                    // 1. Backup SD card resources first to avoid redownloads
+                    addLog(LogType.INFO, "Mengamankan Asset Sumber Daya Game ($pkg -> $pkg.backup)")
+                    val renameSdkCmd = "mv /sdcard/Android/data/$pkg /sdcard/Android/data/$pkg.backup"
+                    addLog(LogType.ROOT, "su -c \"$renameSdkCmd\"")
+                    var r = RootCommandExecutor.executeRootCommand(renameSdkCmd)
+                    if (!r.isSuccess) {
+                        addLog(LogType.INFO, "Gagal memindah atau folder resources SDCard tidak ditemukan di /sdcard/. Mencoba path emulated...")
+                        val renameSdkEmulatedCmd = "mv /storage/emulated/0/Android/data/$pkg /storage/emulated/0/Android/data/$pkg.backup"
+                        addLog(LogType.ROOT, "su -c \"$renameSdkEmulatedCmd\"")
+                        RootCommandExecutor.executeRootCommand(renameSdkEmulatedCmd)
+                    }
 
-                // 2. Clear current app data (pm clear)
-                addLog(LogType.INFO, "Membersihkan package data Mobile Legends saat ini...")
-                val clearCmd = "pm clear com.mobile.legends"
-                addLog(LogType.ROOT, "su -c \"$clearCmd\"")
-                r = RootCommandExecutor.executeRootCommand(clearCmd)
-                if (!r.isSuccess) {
-                    addLog(LogType.ERROR, "Gagal membersihkan data aplikasi: ${r.error}")
-                    // Fallback to restore GMS resources back directly
+                    // 2. Clear current app data (pm clear)
+                    addLog(LogType.INFO, "Membersihkan package data $pkg saat ini...")
+                    val clearCmd = "pm clear $pkg"
+                    addLog(LogType.ROOT, "su -c \"$clearCmd\"")
+                    r = RootCommandExecutor.executeRootCommand(clearCmd)
+                    if (!r.isSuccess) {
+                        addLog(LogType.ERROR, "Gagal membersihkan data aplikasi: ${r.error}")
+                        // Fallback to restore GMS resources back directly
+                        restoreResourcesBack()
+                        _isOperationRunning.value = false
+                        withContext(Dispatchers.Main) {
+                            onComplete(false, "Gagal melakukan 'pm clear'. Pastikan paket game $pkg terpasang.")
+                        }
+                        return@launch
+                    }
+
+                    // Wait a moment for OS to clean up directories
+                    java.lang.Thread.sleep(1000)
+
+                    // 3. Re-create data folder and copy backup
+                    addLog(LogType.INFO, "Menyalin data akun terpilih ke /data/data/$pkg/...")
+                    val restoreCmd = "mkdir -p /data/data/$pkg && cp -R /data/tmp/account/${backup.id}/. /data/data/$pkg/"
+                    addLog(LogType.ROOT, "su -c \"$restoreCmd\"")
+                    r = RootCommandExecutor.executeRootCommand(restoreCmd)
+                    if (!r.isSuccess) {
+                        addLog(LogType.ERROR, "Gagal memulihkan file data backup: ${r.error}")
+                        restoreResourcesBack()
+                        _isOperationRunning.value = false
+                        withContext(Dispatchers.Main) {
+                            onComplete(false, "Gagal menyalin folder backup ke direktori data game.")
+                        }
+                        return@launch
+                    }
+
+                    // 4. CHOWN permissions to ensure ML has permission to access files (Crucial!)
+                    addLog(LogType.INFO, "Memperbaiki hak milik (ownership UID/GID) file game...")
+                    val chownCmd = "ML_UID=\$(stat -c %u /data/data/$pkg); chown -R \$ML_UID:\$ML_UID /data/data/$pkg"
+                    addLog(LogType.ROOT, "su -c \"$chownCmd\"")
+                    r = RootCommandExecutor.executeRootCommand(chownCmd)
+                    if (!r.isSuccess) {
+                        addLog(LogType.ERROR, "Gagal menyesuaikan ownership UI: ${r.error}. Menghubungi selinux...")
+                    }
+                    
+                    // Optional SELinux context restorecon just to be sure
+                    RootCommandExecutor.executeRootCommand("restorecon -R /data/data/$pkg")
+
+                    // 5. Restore SD card resource folders
                     restoreResourcesBack()
+
+                    addLog(LogType.SUCCESS, "Sukses Switch ke Akun [${backup.name}]. Silakan buka game!")
                     _isOperationRunning.value = false
                     withContext(Dispatchers.Main) {
-                        onComplete(false, "Gagal melakukan 'pm clear'. Pastikan paket Mobile Legends terpasang.")
+                        onComplete(true, "Akun ${backup.name} berhasil dimuat kembali. Silakan jalankan game Mobile Legends!")
                     }
-                    return@launch
-                }
 
-                // Wait a moment for OS to clean up directories
-                java.lang.Thread.sleep(1000)
-
-                // 3. Re-create com.mobile.legends data folder and copy backup
-                addLog(LogType.INFO, "Menyalin data akun terpilih ke /data/data/com.mobile.legends/...")
-                val restoreCmd = "mkdir -p /data/data/com.mobile.legends && cp -R /data/tmp/account/${backup.id}/. /data/data/com.mobile.legends/"
-                addLog(LogType.ROOT, "su -c \"$restoreCmd\"")
-                r = RootCommandExecutor.executeRootCommand(restoreCmd)
-                if (!r.isSuccess) {
-                    addLog(LogType.ERROR, "Gagal memulihkan file data backup: ${r.error}")
-                    restoreResourcesBack()
+                } else {
+                    // Simulation Mode
+                    addLog(LogType.INFO, "[SIMULASI] Menyamarkan SDCard data $pkg...")
+                    java.lang.Thread.sleep(800)
+                    addLog(LogType.INFO, "[SIMULASI] Menghapus data aplikasi (pm clear $pkg)")
+                    java.lang.Thread.sleep(1000)
+                    addLog(LogType.INFO, "[SIMULASI] Menyalin file backup [${backup.name}] ke data/data...")
+                    java.lang.Thread.sleep(800)
+                    addLog(LogType.INFO, "[SIMULASI] Menyalurkan UID & GID system perm...")
+                    java.lang.Thread.sleep(400)
+                    addLog(LogType.SUCCESS, "[SIMULASI] Akun ${backup.name} berhasil ditukar dalam database simulator.")
                     _isOperationRunning.value = false
                     withContext(Dispatchers.Main) {
-                        onComplete(false, "Gagal menyalin folder backup ke direktori data Mobile Legends.")
+                        onComplete(true, "[Simulasi] Berhasil memuat Akun ${backup.name}!")
                     }
-                    return@launch
                 }
-
-                // 4. CHOWN permissions to ensure ML has permission to access files (Crucial!)
-                addLog(LogType.INFO, "Memperbaiki hak milik (ownership UID/GID) file game...")
-                val chownCmd = "ML_UID=\$(stat -c %u /data/data/com.mobile.legends); chown -R \$ML_UID:\$ML_UID /data/data/com.mobile.legends"
-                addLog(LogType.ROOT, "su -c \"$chownCmd\"")
-                r = RootCommandExecutor.executeRootCommand(chownCmd)
-                if (!r.isSuccess) {
-                    addLog(LogType.ERROR, "Gagal menyesuaikan ownership UI: ${r.error}. Menghubungi selinux...")
-                }
-                
-                // Optional SELinux context restorecon just to be sure
-                RootCommandExecutor.executeRootCommand("restorecon -R /data/data/com.mobile.legends")
-
-                // 5. Restore SD card resource folders
-                restoreResourcesBack()
-
-                addLog(LogType.SUCCESS, "Sukses Switch ke Akun [${backup.name}]. Silakan buka Mobile Legends!")
+            } catch (e: Exception) {
+                Log.e(TAG, "Error in switchAccount", e)
+                addLog(LogType.ERROR, "Kritis: Gagal memulihkan akun: ${e.localizedMessage}")
                 _isOperationRunning.value = false
                 withContext(Dispatchers.Main) {
-                    onComplete(true, "Akun ${backup.name} berhasil dimuat kembali. Silakan jalankan Mobile Legends!")
-                }
-
-            } else {
-                // Simulation Mode
-                addLog(LogType.INFO, "[SIMULASI] Menyamarkan SDCard data com.mobile.legends...")
-                java.lang.Thread.sleep(800)
-                addLog(LogType.INFO, "[SIMULASI] Menghapus data aplikasi (pm clear com.mobile.legends)")
-                java.lang.Thread.sleep(1000)
-                addLog(LogType.INFO, "[SIMULASI] Menyalin file backup [${backup.name}] ke data/data...")
-                java.lang.Thread.sleep(800)
-                addLog(LogType.INFO, "[SIMULASI] Menyalurkan UID & GID system perm...")
-                java.lang.Thread.sleep(400)
-                addLog(LogType.SUCCESS, "[SIMULASI] Akun ${backup.name} berhasil ditukar dalam database simulator.")
-                _isOperationRunning.value = false
-                withContext(Dispatchers.Main) {
-                    onComplete(true, "[Simulasi] Berhasil memuat Akun ${backup.name}!")
+                    onComplete(false, "Terjadi kesalahan sistem saat memulihkan akun: ${e.localizedMessage}")
                 }
             }
         }
     }
 
     private fun restoreResourcesBack() {
+        val pkg = _selectedPackage.value
         addLog(LogType.INFO, "Mengembalikan folder data resources asset SDCard...")
-        val restoreSdkCmd = "rm -rf /sdcard/Android/data/com.mobile.legends && mv /sdcard/Android/data/com.mobile.legends.backup /sdcard/Android/data/com.mobile.legends"
+        val restoreSdkCmd = "rm -rf /sdcard/Android/data/$pkg && mv /sdcard/Android/data/$pkg.backup /sdcard/Android/data/$pkg"
         addLog(LogType.ROOT, "su -c \"$restoreSdkCmd\"")
         val r = RootCommandExecutor.executeRootCommand(restoreSdkCmd)
         if (!r.isSuccess) {
-            val restoreEmulatedCmd = "rm -rf /storage/emulated/0/Android/data/com.mobile.legends && mv /storage/emulated/0/Android/data/com.mobile.legends.backup /storage/emulated/0/Android/data/com.mobile.legends"
+            val restoreEmulatedCmd = "rm -rf /storage/emulated/0/Android/data/$pkg && mv /storage/emulated/0/Android/data/$pkg.backup /storage/emulated/0/Android/data/$pkg"
             addLog(LogType.ROOT, "su -c \"$restoreEmulatedCmd\"")
             RootCommandExecutor.executeRootCommand(restoreEmulatedCmd)
         }
@@ -435,88 +464,98 @@ class MLAccountManager(private val context: Context) {
      * Create New Account flow. Disables GMS, clears data, triggers ML.
      */
     fun createNewAccount(onMLOpened: (Boolean, String) -> Unit) {
+        val pkg = _selectedPackage.value
         _isOperationRunning.value = true
         CoroutineScope(Dispatchers.IO).launch {
-            if (_isRootMode.value) {
-                addLog(LogType.INFO, "Menjalankan Prosedur Pembuatan Akun Baru (Instant Guest Smurf)...")
+            try {
+                if (_isRootMode.value) {
+                    addLog(LogType.INFO, "Menjalankan Prosedur Pembuatan Akun Baru (Instant Guest Smurf) untuk $pkg...")
 
-                // 1. Rename resource folder so it is not deleted
-                addLog(LogType.INFO, "Mengamankan data Resources agar tidak perlu download ulang...")
-                val renameCmd = "mv /sdcard/Android/data/com.mobile.legends /sdcard/Android/data/com.mobile.legends.backup"
-                addLog(LogType.ROOT, "su -c \"$renameCmd\"")
-                var r = RootCommandExecutor.executeRootCommand(renameCmd)
-                if (!r.isSuccess) {
-                    val renameEmulatedCmd = "mv /storage/emulated/0/Android/data/com.mobile.legends /storage/emulated/0/Android/data/com.mobile.legends.backup"
-                    addLog(LogType.ROOT, "su -c \"$renameEmulatedCmd\"")
-                    RootCommandExecutor.executeRootCommand(renameEmulatedCmd)
+                    // 1. Rename resource folder so it is not deleted
+                    addLog(LogType.INFO, "Mengamankan data Resources agar tidak perlu download ulang...")
+                    val renameCmd = "mv /sdcard/Android/data/$pkg /sdcard/Android/data/$pkg.backup"
+                    addLog(LogType.ROOT, "su -c \"$renameCmd\"")
+                    var r = RootCommandExecutor.executeRootCommand(renameCmd)
+                    if (!r.isSuccess) {
+                        val renameEmulatedCmd = "mv /storage/emulated/0/Android/data/$pkg /storage/emulated/0/Android/data/$pkg.backup"
+                        addLog(LogType.ROOT, "su -c \"$renameEmulatedCmd\"")
+                        RootCommandExecutor.executeRootCommand(renameEmulatedCmd)
+                    }
+
+                    // 2. Disable Google Play Services (GMS)!
+                    addLog(LogType.INFO, "Menonaktifkan Layanan Google Play (com.google.android.gms)...")
+                    val disableGmsCmd = "pm disable com.google.android.gms"
+                    addLog(LogType.ROOT, "su -c \"$disableGmsCmd\"")
+                    r = RootCommandExecutor.executeRootCommand(disableGmsCmd)
+                    if (!r.isSuccess) {
+                        // Try alternative user disable cmd
+                        val disableGmsUserCmd = "pm disable-user --user 0 com.google.android.gms"
+                        addLog(LogType.ROOT, "su -c \"$disableGmsUserCmd\"")
+                        RootCommandExecutor.executeRootCommand(disableGmsUserCmd)
+                    }
+
+                    // 3. Clear current ML account data
+                    addLog(LogType.INFO, "Menghapus identitas data $pkg sebelumnya (pm clear)...")
+                    val clearCmd = "pm clear $pkg"
+                    addLog(LogType.ROOT, "su -c \"$clearCmd\"")
+                    RootCommandExecutor.executeRootCommand(clearCmd)
+
+                    // Wait for OS sync
+                    java.lang.Thread.sleep(1000)
+
+                    // 4. Restore original high-volume game resources so user doesn't download resources in new account!
+                    restoreResourcesBack()
+
+                    // 5. Instantly open Mobile Legends app using launcher Intent or monkey tool
+                    addLog(LogType.INFO, "Meluncurkan Game $pkg secara otomatis...")
+                    val openMLCmd = "monkey -p $pkg -c android.intent.category.LAUNCHER 1"
+                    addLog(LogType.ROOT, "su -c \"$openMLCmd\"")
+                    RootCommandExecutor.executeRootCommand(openMLCmd)
+
+                    // Attempt native android launch fallback in main UI thread
+                    _isOperationRunning.value = false
+                    launchMLBBApp(pkg)
+
+                    // 6. Start countdown timer of 10 minutes to auto-enable Google Play Services
+                    startGmsAutoEnableTimer(600000) // 10 minutes
+
+                    withContext(Dispatchers.Main) {
+                        onMLOpened(true, "Layanan Google Play dinonaktifkan. $pkg diluncurkan. Anda punya waktu 10 menit untuk membuat akun baru!")
+                    }
+
+                } else {
+                    // Simulation Mode
+                    addLog(LogType.INFO, "[SIMULASI] Menyembunyikan resource $pkg...")
+                    java.lang.Thread.sleep(500)
+                    addLog(LogType.INFO, "[SIMULASI] Menonaktifkan Google Play Services (com.google.android.gms)...")
+                    java.lang.Thread.sleep(500)
+                    addLog(LogType.INFO, "[SIMULASI] Membersihkan identitas $pkg...")
+                    java.lang.Thread.sleep(500)
+                    addLog(LogType.INFO, "[SIMULASI] Memasang kembali folder Resources game...")
+                    java.lang.Thread.sleep(500)
+                    addLog(LogType.SUCCESS, "[SIMULASI] Menyalakan game $pkg (Simulasi Launcher)...")
+                    _isOperationRunning.value = false
+
+                    startGmsAutoEnableTimer(600000) // 10 minutes (600,000 ms)
+                    withContext(Dispatchers.Main) {
+                        onMLOpened(true, "[Simulasi] GMS Dinonaktifkan, $pkg otomatis di-boot dalam sandbox.")
+                    }
                 }
-
-                // 2. Disable Google Play Services (GMS)!
-                addLog(LogType.INFO, "Menonaktifkan Layanan Google Play (com.google.android.gms)...")
-                val disableGmsCmd = "pm disable com.google.android.gms"
-                addLog(LogType.ROOT, "su -c \"$disableGmsCmd\"")
-                r = RootCommandExecutor.executeRootCommand(disableGmsCmd)
-                if (!r.isSuccess) {
-                    // Try alternative user disable cmd
-                    val disableGmsUserCmd = "pm disable-user --user 0 com.google.android.gms"
-                    addLog(LogType.ROOT, "su -c \"$disableGmsUserCmd\"")
-                    RootCommandExecutor.executeRootCommand(disableGmsUserCmd)
-                }
-
-                // 3. Clear current ML account data
-                addLog(LogType.INFO, "Menghapus identitas data Mobile Legends sebelumnya (pm clear)...")
-                val clearCmd = "pm clear com.mobile.legends"
-                addLog(LogType.ROOT, "su -c \"$clearCmd\"")
-                RootCommandExecutor.executeRootCommand(clearCmd)
-
-                // Wait for OS sync
-                java.lang.Thread.sleep(1000)
-
-                // 4. Restore original high-volume game resources so user doesn't download resources in new account!
-                restoreResourcesBack()
-
-                // 5. Instantly open Mobile Legends app using launcher Intent or monkey tool
-                addLog(LogType.INFO, "Meluncurkan Game Mobile Legends secara otomatis...")
-                val openMLCmd = "monkey -p com.mobile.legends -c android.intent.category.LAUNCHER 1"
-                addLog(LogType.ROOT, "su -c \"$openMLCmd\"")
-                RootCommandExecutor.executeRootCommand(openMLCmd)
-
-                // Attempt native android lunch fallback in main UI thread
+            } catch (e: Exception) {
+                Log.e(TAG, "Error in createNewAccount", e)
+                addLog(LogType.ERROR, "Kritis: Gagal membuat akun baru: ${e.localizedMessage}")
                 _isOperationRunning.value = false
-                launchMLBBApp()
-
-                // 6. Start countdown timer of 10 minutes to auto-enable Google Play Services
-                startGmsAutoEnableTimer(600000) // 10 minutes
-
                 withContext(Dispatchers.Main) {
-                    onMLOpened(true, "Layanan Google Play dinonaktifkan. Mobile Legends diluncurkan. Anda punya waktu 10 menit untuk membuat akun baru!")
-                }
-
-            } else {
-                // Simulation Mode
-                addLog(LogType.INFO, "[SIMULASI] Menyembunyikan resource MLBB...")
-                java.lang.Thread.sleep(500)
-                addLog(LogType.INFO, "[SIMULASI] Menonaktifkan Google Play Services (com.google.android.gms)...")
-                java.lang.Thread.sleep(500)
-                addLog(LogType.INFO, "[SIMULASI] Membersihkan identitas Mobile Legends...")
-                java.lang.Thread.sleep(500)
-                addLog(LogType.INFO, "[SIMULASI] Memasang kembali folder Resources game...")
-                java.lang.Thread.sleep(500)
-                addLog(LogType.SUCCESS, "[SIMULASI] Menyalakan game Mobile Legends (Simulasi Launcher)...")
-                _isOperationRunning.value = false
-
-                startGmsAutoEnableTimer(600000) // 10 minutes (600,000 ms)
-                withContext(Dispatchers.Main) {
-                    onMLOpened(true, "[Simulasi] GMS Dinonaktifkan, Mobile Legends otomatis di-boot dalam sandbox.")
+                    onMLOpened(false, "Terjadi kesalahan sistem: ${e.localizedMessage}")
                 }
             }
         }
     }
 
-    private fun launchMLBBApp() {
+    private fun launchMLBBApp(packageName: String) {
         mainHandler.post {
             try {
-                val launchIntent = context.packageManager.getLaunchIntentForPackage("com.mobile.legends")
+                val launchIntent = context.packageManager.getLaunchIntentForPackage(packageName)
                 if (launchIntent != null) {
                     launchIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
                     context.startActivity(launchIntent)
@@ -600,15 +639,16 @@ class MLAccountManager(private val context: Context) {
      * Checks if Mobile Legends (com.unity3d.player.UnityPlayerActivity) is in the foreground.
      */
     private fun checkIfMlInForeground(): Boolean {
+        val pkg = _selectedPackage.value
         return if (_isRootMode.value) {
             // Using real dumpsys tool to detect foreground activity
             val result = RootCommandExecutor.executeRootCommand("dumpsys window | grep -E 'mCurrentFocus|mFocusedApp|mResumedActivity'")
             if (result.isSuccess && result.output.isNotEmpty()) {
                 result.output.contains("com.unity3d.player.UnityPlayerActivity") || 
-                result.output.contains("com.mobile.legends")
+                result.output.contains(pkg)
             } else {
                 // Fallback to check via PS command or am monitor
-                val psResult = RootCommandExecutor.executeRootCommand("ps -A | grep com.mobile.legends")
+                val psResult = RootCommandExecutor.executeRootCommand("ps -A | grep $pkg")
                 psResult.isSuccess && psResult.output.isNotEmpty()
             }
         } else {
@@ -654,35 +694,43 @@ class MLAccountManager(private val context: Context) {
 
     fun deleteBackup(backup: BackupAccount, onComplete: (Boolean) -> Unit) {
         CoroutineScope(Dispatchers.IO).launch {
-            if (_isRootMode.value) {
-                addLog(LogType.ROOT, "su -c \"rm -rf /data/tmp/account/${backup.id}\"")
-                val r = RootCommandExecutor.executeRootCommand("rm -rf /data/tmp/account/${backup.id}")
-                if (r.isSuccess) {
-                    addLog(LogType.SUCCESS, "Backup Akun [${backup.name}] Berhasil di Hapus.")
-                    refreshBackups()
-                    withContext(Dispatchers.Main) {
-                        onComplete(true)
+            try {
+                if (_isRootMode.value) {
+                    addLog(LogType.ROOT, "su -c \"rm -rf /data/tmp/account/${backup.id}\"")
+                    val r = RootCommandExecutor.executeRootCommand("rm -rf /data/tmp/account/${backup.id}")
+                    if (r.isSuccess) {
+                        addLog(LogType.SUCCESS, "Backup Akun [${backup.name}] Berhasil di Hapus.")
+                        refreshBackups()
+                        withContext(Dispatchers.Main) {
+                            onComplete(true)
+                        }
+                    } else {
+                        addLog(LogType.ERROR, "Gagal menghapus backup: ${r.error}")
+                        withContext(Dispatchers.Main) {
+                            onComplete(false)
+                        }
                     }
                 } else {
-                    addLog(LogType.ERROR, "Gagal menghapus backup: ${r.error}")
-                    withContext(Dispatchers.Main) {
-                        onComplete(false)
+                    val simDir = File(context.filesDir, "simulated_accounts")
+                    val folder = File(simDir, backup.id)
+                    val success = folder.deleteRecursively()
+                    if (success) {
+                        addLog(LogType.SUCCESS, "[SIMULASI] Backup Akun [${backup.name}] Berhasil di Hapus.")
+                        refreshBackups()
+                        withContext(Dispatchers.Main) {
+                            onComplete(true)
+                        }
+                    } else {
+                        withContext(Dispatchers.Main) {
+                            onComplete(false)
+                        }
                     }
                 }
-            } else {
-                val simDir = File(context.filesDir, "simulated_accounts")
-                val folder = File(simDir, backup.id)
-                val success = folder.deleteRecursively()
-                if (success) {
-                    addLog(LogType.SUCCESS, "[SIMULASI] Backup Akun [${backup.name}] Berhasil di Hapus.")
-                    refreshBackups()
-                    withContext(Dispatchers.Main) {
-                        onComplete(true)
-                    }
-                } else {
-                    withContext(Dispatchers.Main) {
-                        onComplete(false)
-                    }
+            } catch (e: Exception) {
+                Log.e(TAG, "Error in deleteBackup", e)
+                addLog(LogType.ERROR, "Kritis: Gagal menghapus backup: ${e.localizedMessage}")
+                withContext(Dispatchers.Main) {
+                    onComplete(false)
                 }
             }
         }
