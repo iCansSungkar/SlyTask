@@ -1,13 +1,13 @@
 <div align="center">
 
-<!-- Title Animasi / Elegan -->
+<!-- Title Animation / Elegant -->
 <img src="./app/src/main/res/drawable/logo.png" alt="SlyTask" width="150px" />
 <h1>⚡ SLYTASK ⚡</h1>
 <p align="center">
   <strong>An elegant, powerful, and modern Mobile Legends utility tool built with Jetpack Compose.</strong>
 </p>
 
-<!-- Badges Kece -->
+<!-- Cool Badges -->
 <p align="center">
   <img src="https://img.shields.io/badge/Platform-Android-3DDC84?style=for-the-badge&logo=android&logoColor=white" alt="Android">
   <img src="https://img.shields.io/badge/Built%20With-Jetpack%20Compose-4285F4?style=for-the-badge&logo=jetpackcompose&logoColor=white" alt="Jetpack Compose">
@@ -15,81 +15,77 @@
   <img src="https://img.shields.io/github/license/iCansSungkar/SlyTask?style=for-the-badge&color=22c55e" alt="License">
 </p>
 
----
-
-<p align="center">
-  <a href="#%EF%B8%8F-tech-stack">Fitur Utama</a> •
-  <a href="#%EF%B8%8F-tech-stack">Teknologi</a> •
-  <a href="#%EF%B8%8F-how-it-works-cara-kerja">Cara Kerja</a> •
-  <a href="#%EF%B8%8F-disclaimer">Disclaimer</a> •
-  <a href="#-credits--acknowledgements">Kredit</a>
-</p>
-
 </div>
-
-<br>
-
-## 📌 Tentang SlyTask
-
-**SlyTask** adalah aplikasi utilitas Android modern yang dirancang khusus untuk membantu pemain *Mobile Legends: Bang Bang* mengelola multi-akun secara instan dan aman. Aplikasi ini dikembangkan menggunakan pendekatan desain **Neo-Bento Dashboard UI** untuk mempermudah manajemen akun (smurf/utama) serta proses pembuatan akun baru tanpa perlu melewati proses unduh ulang data game (*resource*)[cite: 1].
-
-> 💡 **Fun Fact & Evolution:** Projek ini merupakan evolusi dan hasil adaptasi penuh dari *bash script* automasi yang sebelumnya saya buat, yaitu [MoLeTo (Mobile Legends Tools)](https://github.com/iCansSungkar/MoLeTo). Logika automasi berbasis shell tersebut kini telah dimigrasikan ke dalam aplikasi Android berbasis GUI yang jauh lebih interaktif, elegan, dan modern[cite: 1].
-
----
-
-## 🚀 Key Features
-
-- 🔄 **Instant Account Switcher:** Cadangkan sesi login secara offline dari direktori data sistem dan muat kembali akun yang berbeda dalam hitungan detik[cite: 1].
-- 👥 **Instant Guest Account Creator:** Membuat akun *guest* baru secara instan melalui sistem otomatisasi penonaktifan *Google Play Services* (GMS) sementara[cite: 1].
-- 🎨 **Neo-Bento UI Design:** Antarmuka modern yang bersih, intuitif, mendukung peralihan *Dark Mode* & *Light Mode*, serta sistem multi-bahasa (Bahasa Indonesia & English)[cite: 1].
-- 💻 **System Shell Terminal Logs:** Fitur *live terminal* interaktif langsung di dalam aplikasi untuk memantau jalannya perintah *superuser (su)* secara real-time[cite: 1].
-- 🛡️ **Dual Execution Mode:** Mendukung *Real Root Mode* (perintah riil via biner root) serta *Simulation Sandbox Mode* untuk keperluan testing pengembang[cite: 1].
-
----
-
-## 🛠️ Tech Stack
-
-Aplikasi ini dikembangkan menggunakan teknologi mutakhir dalam ekosistem Android[cite: 1]:
-- **Language:** Kotlin[cite: 1]
-- **UI Framework:** Jetpack Compose (Material Design 3)[cite: 1]
-- **State Management:** Kotlin Coroutines & Reactive StateFlow[cite: 1]
-- **Architecture:** MVVM dengan integrasi backend `MLAccountManager`[cite: 1]
-- **Root Executor:** Superuser Binary Handler (Magisk / APatch integration)[cite: 1]
-
----
-
-## 🕹️ How It Works (Cara Kerja)
-
-### 1. Sistem Ganti Akun
-Aplikasi membaca dan menyalin data sesi enkripsi login MLBB yang tersimpan di dalam folder `/data/data/com.mobile.legends`[cite: 1]. Saat Anda memuat (*switch*) akun, aplikasi akan menimpa berkas sesi tersebut secara aman tanpa mengganggu file aset visual (3D/audio) game[cite: 1].
-
-### 2. Pembuatan Akun Baru (Instant Guest)
-Untuk melewati pembatasan Google, aplikasi mendeteksi saat MLBB berjalan di *foreground* lalu menonaktifkan *Google Play Services* (`com.google.android.gms`) dalam durasi waktu tertentu menggunakan *countdown timer*[cite: 1]. Setelah akun berhasil dibuat, GMS akan otomatis diaktifkan kembali[cite: 1].
-
----
-
-## ⚠️ Disclaimer
-
-> [!WARNING]
-> **PENGGUNAAN RESIKO SENDIRI (USE AT YOUR OWN RISK)**
-> 
-> * **Bukan Aplikasi Resmi:** SlyTask adalah aplikasi pihak ketiga dan **SAMA SEKALI BUKAN** aplikasi resmi dari, berafiliasi dengan, atau didukung oleh **Shanghai Moonton Technology Co., Ltd.**
-> * **Tidak Merugikan Pihak Manapun:** Aplikasi ini dibuat murni sebagai alat bantu utilitas manajemen data lokal perangkat untuk efisiensi pengguna. Aplikasi ini **tidak mengandung cheat, script modifikasi game, hack skin, bypass pembelian in-app, atau tindakan ilegal lainnya** yang merugikan pihak Moonton maupun ekosistem pemain lainnya.
-> * **Persyaratan Sistem:** Projek ini membutuhkan **Akses Root Superuser**[cite: 1]. Pengembang tidak bertanggung jawab atas kegagalan sistem, hilangnya data akun, atau masalah performa pada perangkat Anda.
-> * **Keamanan Akun:** Pastikan Anda telah mengaitkan (*bind*) akun utama Anda ke Moonton/Facebook/TikTok sebelum menggunakan fitur ganti akun guna menghindari hilangnya akses[cite: 1].
-
----
-
-## 🤝 Credits & Acknowledgements
-
-Projek ini berhasil dikembangkan berkat kerja sama tim hebat berikut[cite: 1]:
-
-* **Ihsan Sungkar** ([@iCansSungkar](https://github.com/iCansSungkar)) — *Lead Developer & Creator*[cite: 1]
-* **AI Assistant (DeepMind Antigravity)** — *AI Specialist & Architecture Advisor*[cite: 1]
-* **Ramadhan Sungkar** ([@adanSncrs](https://github.com/adanSncrs)) — *QA, Core Tester & Bug Hunter*[cite: 1]
 
 ---
 
 <div align="center">
-  <p>Maintained with ❤️ by <a href="https://github.com/iCansSungkar">iCansSungkar</a></p>
+  <a href="#about-slytask">About</a> •
+  <a href="#-key-features">Key Features</a> •
+  <a href="#-tech-stack">Tech Stack</a> •
+  <a href="#-how-it-works">How It Works</a> •
+  <a href="#%EF%B8%8F-disclaimer">Disclaimer</a> •
+  <a href="#-credits--acknowledgements">Credits</a>
 </div>
+
+<br>
+
+### 📌 About SlyTask
+
+**SlyTask** is a modern Android utility app specifically designed to help *Mobile Legends: Bang Bang* players manage multiple accounts instantly and securely. The app is developed using a **Neo-Bento Dashboard UI** approach to simplify account management (smurf/main) and the creation of new accounts without having to re-download game resources.
+
+> 💡 **Fun Fact & Evolution:** This project is an evolution and full adaptation of an automation bash script I previously created, [MoLeTo (Mobile Legends Tools)](https://github.com/iCansSungkar/MoLeTo). The shell-based automation logic has now been migrated into an Android GUI app that is much more interactive, elegant, and modern.
+
+---
+
+### 🚀 Key Features
+
+- 🔄 **Instant Account Switcher:** Back up login sessions offline from the system data directory and reload different accounts in seconds.
+- 👥 **Instant Guest Account Creator:** Create new guest accounts instantly through an automated system that temporarily disables Google Play Services (GMS).
+- 🎨 **Neo-Bento UI Design:** A clean, intuitive modern interface supporting Dark Mode & Light Mode transitions, as well as a multi-language system (Indonesian & English).
+- 💻 **System Shell Terminal Logs:** An interactive live terminal feature directly within the app to monitor real-time superuser (su) command executions.
+- 🛡️ **Dual Execution Mode:** Supports Real Root Mode (actual execution via root binary) and Simulation Sandbox Mode for developer testing purposes.
+
+---
+
+### 🛠️ Tech Stack
+
+This application is built using cutting-edge technologies within the Android ecosystem:
+- **Language:** Kotlin
+- **UI Framework:** Jetpack Compose (Material Design 3)
+- **State Management:** Kotlin Coroutines & Reactive StateFlow
+- **Architecture:** MVVM with `MLAccountManager` backend integration
+- **Root Executor:** Superuser Binary Handler (Magisk / APatch integration)
+
+---
+
+### 🕹️ How It Works
+
+#### 1. Account Switching System
+The app reads and copies MLBB login encryption session data stored in the `/data/data/com.mobile.legends` folder. When you switch accounts, the app securely overwrites the session files without disrupting the game's visual assets (3D/audio).
+
+#### 2. New Account Creation (Instant Guest)
+To bypass Google restrictions, the app detects when MLBB is running in the foreground and disables Google Play Services (`com.google.android.gms`) for a specific duration using a countdown timer. Once the account is successfully created, GMS will automatically be re-enabled.
+
+---
+
+### ⚠️ Disclaimer
+
+> [!WARNING]
+> **USE AT YOUR OWN RISK**
+> 
+> * **Not an Official App:** SlyTask is a third-party application and is **ABSOLUTELY NOT** an official app of, affiliated with, or endorsed by **Shanghai Moonton Technology Co., Ltd.**
+> * **No Harm Intended:** This app was created purely as a local device data management utility tool for user efficiency. It **does not contain cheats, game modification scripts, skin hacks, in-app purchase bypasses, or any illegal activities** that harm Moonton or the player ecosystem.
+> * **System Requirements:** This project requires **Superuser Root Access**. The developer is not responsible for any system failures, loss of account data, or performance issues on your device.
+> * **Account Security:** Ensure you have bound your main account to Moonton/Facebook/TikTok before using the account switching feature to prevent loss of access.
+
+---
+
+### 🤝 Credits & Acknowledgements
+
+This project was successfully developed thanks to the collaboration of the following great team:
+
+* **Ihsan Sungkar** ([@iCansSungkar](https://github.com/iCansSungkar)) — *Lead Developer & Creator*
+* **Ramadhan Sungkar** ([@adanSncrs](https://github.com/adanSncrs)) — *QA, Core Tester & Bug Hunter*
+
+---
